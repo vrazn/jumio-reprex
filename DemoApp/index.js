@@ -4,7 +4,7 @@
  * @flow
  */
 
-import React, {Component, useState} from 'react';
+import React, {Component, useState, useEffect, useCallback} from 'react';
 import {
     AppRegistry,
     Button,
@@ -12,7 +12,9 @@ import {
     StyleSheet,
     View,
     NativeModules,
-    NativeEventEmitter, TextInput
+    NativeEventEmitter, 
+    TextInput,
+    ActivityIndicator,
 } from 'react-native';
 import { LogBox } from 'react-native';
 
@@ -20,74 +22,67 @@ LogBox.ignoreLogs(['new NativeEventEmitter']);
 
 const {JumioMobileSDK} = NativeModules;
 
-const DATACENTER = 'DATACENTER'
+const DATACENTER = 'SG'
 
-// Jumio SDK
-const startJumio = (authorizationToken) => {
-    JumioMobileSDK.initialize(authorizationToken, DATACENTER);
-
-    // Setup iOS customizations
-//    JumioMobileSDK.setupCustomizations(
-//        {
-//            loadingCircleIcon: "#000000",
-//            loadingCirclePlain: "#000000",
-//            loadingCircleGradientStart: "#000000",
-//            loadingCircleGradientEnd: "#000000",
-//            loadingErrorCircleGradientStart: "#000000",
-//            loadingErrorCircleGradientEnd: "#000000",
-//            primaryButtonBackground: {"light": "#FFC0CB", "dark": "#FF1493"}
-//        }
-//    );
-
-    JumioMobileSDK.start();
-};
-
-const isDeviceRooted = async () => {
-    const isRooted = await JumioMobileSDK.isRooted();
-    console.warn("Device is rooted: " + isRooted)
-}
-
-// Callbacks - (Data is displayed as a warning for demo purposes)
-const emitterJumio = new NativeEventEmitter(JumioMobileSDK);
-emitterJumio.addListener(
-    'EventResult',
-    (EventResult) => console.warn("EventResult: " + JSON.stringify(EventResult))
-);
-emitterJumio.addListener(
-    'EventError',
-    (EventError) => console.warn("EventError: " + JSON.stringify(EventError))
-);
-
-export default class DemoApp extends Component {
-    render() {
-        return (
-            <View style={styles.container}>
-                <AuthTokenInput/>
-            </View>
-        );
-    }
-}
-
-const AuthTokenInput = () => {
+export const DemoApp = () => {
+    const [loading, setLoading] = useState(false);
     const [authorizationToken, setAuthorizationToken] = useState("");
 
+    const startJumio = useCallback((authorizationToken) => {
+      setLoading(true);
+      
+      JumioMobileSDK.initialize(authorizationToken, DATACENTER);
+      JumioMobileSDK.start();
+    }, []);
+
+    useEffect(() => {
+      const emitterJumio = new NativeEventEmitter(JumioMobileSDK);
+      const successListener = emitterJumio.addListener(
+          'EventResult',
+          (EventResult) => { 
+            console.warn("EventResult: " + JSON.stringify(EventResult));
+            setLoading(false);
+          }
+      );
+      const errorListener = emitterJumio.addListener(
+          'EventError',
+          (EventError) => {
+            console.warn("EventError: " + JSON.stringify(EventError))
+            setLoading(false);
+          }
+      );
+
+      return () => {
+        successListener.remove();
+        errorListener.remove();
+      }
+    }, []);
+
     return (
-        <View>
-            <TextInput
+      <View style={styles.container}>
+        {
+          loading 
+          ? (<ActivityIndicator size="large" />) 
+          : (
+            <>
+              <TextInput
                 style={styles.input}
                 placeholder="Authorization token"
                 placeholderTextColor="#000"
                 returnKeyType="done"
                 onChangeText={text => setAuthorizationToken(text)}
                 value={authorizationToken}
-            />
-            <Button
+              />
+              <Button
                 title="Start"
                 onPress={() => startJumio(authorizationToken)}
-            />
-        </View>
+              /> 
+            </>
+          )
+        }
+      </View>
     );
-};
+}
 
 const styles = StyleSheet.create({
     container: {
