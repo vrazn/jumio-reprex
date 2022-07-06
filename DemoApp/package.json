@@ -13,7 +13,7 @@
     "@react-native-community/cli-platform-android": "^7.0.1",
     "react": "17.0.2",
     "react-native": "0.68.2",
-    "react-native-jumio-mobilesdk": "file:../"
+    "react-native-jumio-mobilesdk": "github:Jumio/mobile-react#v4.1.0"
   },
   "devDependencies": {
     "@babel/core": "^7.16.0",
